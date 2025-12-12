@@ -1,3 +1,36 @@
 <resources>
     <string name="app_name">Ktulhu Ai</string>
+
+    <!-- Auth -->
+    <string name="auth_sign_in_title">Sign In</string>
+    <string name="auth_sign_in">Sign In</string>
+    <string name="auth_signing_in">Signing in...</string>
+    <string name="auth_email_label">Email</string>
+    <string name="auth_password_label">Password</string>
+    <string name="auth_need_account">Need an account? Register</string>
+    <string name="auth_back">Back</string>
+    <string name="auth_create_title">Create Account</string>
+    <string name="auth_create">Create Account</string>
+    <string name="auth_creating">Creating...</string>
+    <string name="auth_already_have">Already have an account? Sign In</string>
+    <string name="auth_continue_google">Continue with Google</string>
+    <string name="auth_continue_apple">Continue with Apple</string>
+    <string name="auth_continue_facebook">Continue with Facebook</string>
+    <string name="auth_continue_email">Continue with Email</string>
+    <string name="auth_continue_anonymous">Start Anonymous Session</string>
+
+    <!-- Hero copy -->
+    <string name="hero_message_workspace">Chat securely without leaving your workspace.</string>
+    <string name="hero_message_brainstorm">Brainstorm features, docs, and ideas in seconds.</string>
+    <string name="hero_message_secure">Secure, private conversations powered by Ktulhu.</string>
+
+    <!-- Chat -->
+    <string name="chat_placeholder">Ask Ktulhu…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_new_chat">New chat</string>
+    <string name="chat_menu">Chat menu</string>
+    <string name="chat_rename">Rename chat</string>
+    <string name="chat_delete">Delete chat</string>
+    <string name="chat_login_profile">Login / Profile</string>
+    <string name="chat_menu_title">Menu</string>
 </resources>

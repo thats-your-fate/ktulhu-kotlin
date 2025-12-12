@@ -18,7 +18,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,12 +25,15 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
 import com.ktulhu.ai.ui.theme.KColors
+import com.ktulhu.ai.R
 
 enum class InputStatus { Idle, Thinking }
 
@@ -42,11 +44,12 @@ fun ChatInputArea(
     status: InputStatus,
     onSend: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Ask Ktulhu…",
+    @StringRes placeholderRes: Int = R.string.chat_placeholder,
     enabled: Boolean = true
 ) {
     val c = KColors
     val shape = RoundedCornerShape(32.dp)
+    val placeholder = stringResource(placeholderRes)
 
     val canSend = enabled && status == InputStatus.Idle
 
@@ -71,9 +74,9 @@ fun ChatInputArea(
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        contentAlignment = Alignment.BottomEnd
+            .fillMaxSize()
+            .imePadding(),
+                contentAlignment = Alignment.BottomEnd
     ) {
         // ------------------------------
         // 🌟 Expanding TextField Container
@@ -122,13 +125,17 @@ fun ChatInputArea(
                 decorationBox = { innerTextField ->
                     Box(
                         modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.TopStart
+                        contentAlignment = Alignment.CenterStart
                     ) {
                         if (value.isEmpty()) {
                             Text(
                                 text = placeholder,
                                 color = c.textareaPlaceholder,
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = 18.sp,
+                                    lineHeight = 22.sp
+                                )
+
                             )
                         }
                         innerTextField()
@@ -171,21 +178,21 @@ private fun StatusButton(
             .clip(CircleShape)
             .background(if (isThinking) c.badgeBg else c.messageUserBg)
             .clickable(enabled = enabled && !isThinking) { onClick() }
-            .padding(12.dp),
+            .padding(start = 3.dp, bottom = 3.dp),
         contentAlignment = Alignment.Center
     ) {
         if (isThinking) {
             CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(28.dp),
                 strokeWidth = 2.dp,
                 color = c.badgeText
             )
         } else {
             Icon(
                 imageVector = Icons.Rounded.Send,
-                contentDescription = "Send",
+                contentDescription = stringResource(R.string.chat_send),
                 tint = c.messageUserText,
-                modifier = Modifier.rotate(-25f)
+                modifier = Modifier.size(28.dp).rotate(-25f)
             )
         }
     }

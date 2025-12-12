@@ -22,9 +22,67 @@ import androidx.compose.ui.unit.sp
  * - numbered lists (1.)
  * - paragraphs + newlines
  */
+
+
+
+object MathSymbolDictionary {
+
+    private val map = mapOf(
+        "\\alpha" to "α",
+        "\\beta" to "β",
+        "\\gamma" to "γ",
+        "\\delta" to "δ",
+        "\\epsilon" to "ε",
+        "\\theta" to "θ",
+        "\\lambda" to "λ",
+        "\\mu" to "μ",
+        "\\pi" to "π",
+        "\\psi" to "ψ",
+        "\\phi" to "φ",
+        "\\omega" to "ω",
+
+        "\\sum" to "∑",
+        "\\int" to "∫",
+        "\\infty" to "∞",
+        "\\partial" to "∂",
+        "\\nabla" to "∇",
+
+        "\\cdot" to "·",
+        "\\times" to "×",
+        "\\pm" to "±",
+        "\\leq" to "≤",
+        "\\geq" to "≥",
+        "\\neq" to "≠",
+
+        "\\rightarrow" to "→",
+        "\\leftarrow" to "←",
+        "\\leftrightarrow" to "↔"
+    )
+
+    fun replace(input: String): String {
+        var out = input
+        for ((latex, symbol) in map) {
+            out = out.replace(latex, symbol)
+        }
+        return out
+    }
+}
+
+
 object PrimitiveMarkdown {
 
 
+    private val InlineMathStyle = SpanStyle(
+        fontFamily = FontFamily.Monospace,
+        fontSize = 15.sp,
+        background = androidx.compose.ui.graphics.Color(0xFFEDEDED)
+    )
+
+    private val BlockMathStyle = SpanStyle(
+        fontFamily = FontFamily.Monospace,
+        fontSize = 16.sp,
+        background = androidx.compose.ui.graphics.Color(0xFFE6E6E6)
+    )
 
 
     fun parse(md: String, textColor: androidx.compose.ui.graphics.Color): AnnotatedString {
@@ -49,6 +107,38 @@ object PrimitiveMarkdown {
         }
 
         while (i < length) {
+
+            // ======== INLINE MATH ========
+            if (md.startsWith("\\(", i)) {
+                consume(2)
+                val start = i
+                val end = md.indexOf("\\)", start).takeIf { it != -1 } ?: length
+                val math = md.substring(start, end)
+                consume(math.length + 2)
+
+                styled(
+                    MathSymbolDictionary.replace(math),
+                    InlineMathStyle
+                )
+
+                continue
+            }
+
+            // ======== BLOCK MATH ========
+            if (md.startsWith("\\[", i)) {
+                consume(2)
+                val start = i
+                val end = md.indexOf("\\]", start).takeIf { it != -1 } ?: length
+                val math = md.substring(start, end)
+                consume(math.length + 2)
+
+                styled(
+                    math.trim(),
+                    BlockMathStyle
+                )
+                append("\n")
+                continue
+            }
 
             // ======== HEADINGS ========
             if (md.startsWith("### ", i)) {

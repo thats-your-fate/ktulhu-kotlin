@@ -2,30 +2,27 @@ package com.ktulhu.ai.ui.screens
 
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Menu
-import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Person2
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,57 +36,71 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ktulhu.ai.R
 import com.ktulhu.ai.ui.components.ChatInputArea
 import com.ktulhu.ai.ui.components.ChatMessageBubble
 import com.ktulhu.ai.ui.components.InputStatus
-import com.ktulhu.ai.ui.theme.KColors
-import com.ktulhu.ai.viewmodel.ChatViewModel
-import com.ktulhu.ai.viewmodel.SessionState
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.material3.*
-import androidx.compose.foundation.layout.*
 import com.ktulhu.ai.ui.components.LeftIslandButton
 import com.ktulhu.ai.ui.components.RightIsland
-@OptIn(ExperimentalMaterial3Api::class)
+import com.ktulhu.ai.ui.theme.KColors
+import com.ktulhu.ai.ui.util.ViewportInfo
+import com.ktulhu.ai.viewmodel.ChatViewModel
+import com.ktulhu.ai.viewmodel.SessionState
+import androidx.compose.foundation.layout.PaddingValues
+
 @Composable
 fun MainChatScreen(
     session: SessionState,
     modifier: Modifier = Modifier,
     chatViewModel: ChatViewModel = viewModel(),
     onOpenDrawer: () -> Unit = {},
-    onNewChatShortcut: () -> Unit = {}
+    onNewChatShortcut: () -> Unit = {},
+    viewportInfo: ViewportInfo? = null
 ) {
     val c = KColors
+
     val history by chatViewModel.history.collectAsState()
     val loading by chatViewModel.loading.collectAsState()
     val thinking by chatViewModel.thinking.collectAsState()
+
     var composerText by remember(session.chatId) { mutableStateOf("") }
+
     val listState = rememberLazyListState()
     val currentLastIndex by rememberUpdatedState(history.lastIndex)
-    val lastMessageKey = history.lastOrNull()?.let { it.id to it.content.length }
 
+    // Load history when chat changes
     LaunchedEffect(session.chatId) {
         chatViewModel.loadHistory(session.chatId)
     }
-    LaunchedEffect(lastMessageKey) {
+
+    // Scroll to last automatically when new message added
+    LaunchedEffect(history.lastOrNull()?.id) {
+        if (history.isNotEmpty()) {
+            listState.animateScrollToItem(history.lastIndex)
+        }
+    }
+    // Keep bottom visible while streaming into the last message (content changes but id stays)
+    LaunchedEffect(history.lastOrNull()?.let { it.id + ":" + it.content.length }) {
         if (history.isNotEmpty()) {
             listState.animateScrollToItem(history.lastIndex)
         }
     }
 
+    // Auto follow-down when user is already at bottom
     LaunchedEffect(listState, history) {
         if (history.isEmpty()) return@LaunchedEffect
         snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
-            Triple(
-                lastVisible?.index,
-                lastVisible?.offset?.plus(lastVisible.size) ?: 0,
-                layoutInfo.viewportEndOffset
-            )
+            val items = listState.layoutInfo.visibleItemsInfo
+            val lastVisible = items.lastOrNull()
+            val viewportEnd = listState.layoutInfo.viewportEndOffset
+            val bottom = lastVisible?.offset?.plus(lastVisible.size) ?: 0
+            Triple(lastVisible?.index, bottom, viewportEnd)
         }.collect { (visibleIndex, bottom, viewportEnd) ->
             if (visibleIndex == currentLastIndex && bottom > viewportEnd) {
                 listState.animateScrollBy((bottom - viewportEnd).toFloat())
@@ -97,127 +108,132 @@ fun MainChatScreen(
         }
     }
 
-    val accentColor = if (isSystemInDarkTheme()) c.headerTitle else c.messageUserBg
-    val iconContentColor = if (isSystemInDarkTheme()) c.headerTitle else c.messageUserText
+    val usingViewport = (viewportInfo?.visibleHeight ?: 0) > 0
 
-    Scaffold(
-        topBar = {
-            Surface(
-                color = Color.Transparent,
-                tonalElevation = 0.dp,
-                shadowElevation = 0.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(80.dp)
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 1.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+    // Layout constants
+    val ChatInputMinHeight = 64.dp
+    val ChatInputMaxHeight = 200.dp
+    val ChatListExtraBottomPadding = 24.dp
+    val TopBarHeight = 64.dp
+    val ExtraBottomPadding = 16.dp
 
-
-
-                    val isNewChat = history.isEmpty()
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(80.dp)
-                            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 1.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-
-                        // LEFT ISLAND
-                        LeftIslandButton(
-                            onOpenDrawer = onOpenDrawer,
-                            modifier = Modifier.size(44.dp)
-                        )
-
-                        // TITLE
-                        Surface(
-                            color = accentColor,
-                            shape = RoundedCornerShape(8.dp),
-                            tonalElevation = 0.dp
-                        ) {
-                            Text(
-                                "Ktulhu Ai",
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontSize = MaterialTheme.typography.titleLarge.fontSize * 0.85f,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            )
-                        }
-
-                        // RIGHT ISLAND
-                        RightIsland(
-                            isNewChat = isNewChat,
-                            onNewChat = onNewChatShortcut,
-                            onRenameChat = { /* TODO */ },
-                            onDeleteChat = { /* TODO */ },
-                            modifier = Modifier
-                                .wrapContentWidth()
-                                .height(44.dp)         // optional: keep consistent height
-                        )
-
-                    }
-
-
-
-
-
-
-                }
-            }
-        },
-
-        bottomBar = {
-            // Make bottom bar transparent + follow keyboard
-            Surface(
-                color = Color.Transparent,
-                tonalElevation = 0.dp,
-                shadowElevation = 0.dp,
-                modifier = Modifier
-                    .windowInsetsPadding(WindowInsets.ime) // <-- KEYBOARD FIX
-            ) {
-                ChatInputArea(
-                    value = composerText,
-                    onValueChange = { composerText = it },
-                    status = if (thinking) InputStatus.Thinking else InputStatus.Idle,
-                    enabled = !loading,
-                    onSend = { text ->
-                        chatViewModel.sendPrompt(text, session)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp) // LESS padding
-                )
-            }
-        }
-
-    )
-{ innerPadding ->
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .imePadding()
+    ) {
+        // 1️⃣ Main content (messages + input)
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+            modifier = Modifier.fillMaxSize()
         ) {
-            if (loading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(8.dp),
-                state = listState
+                    .fillMaxWidth(),
+                state = listState,
+                contentPadding = PaddingValues(
+                    top = TopBarHeight + 8.dp, // 👈 allow scrolling under header
+                    bottom = ChatInputMinHeight + ChatListExtraBottomPadding + ExtraBottomPadding
+                )
             ) {
-                items(history) { msg ->
-                    ChatMessageBubble(msg = msg)
+                items(history, key = { it.id }) { msg ->
+                    ChatMessageBubble(msg)
                 }
             }
+        }
+
+        // 2️⃣ Floating top bar (overlay)
+        ChatTopBar(
+            historyEmpty = history.isEmpty(),
+            onOpenDrawer = onOpenDrawer,
+            onNewChatShortcut = onNewChatShortcut,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(TopBarHeight)
+        )
+
+        // 3️⃣ Floating input (overlay)
+        ChatInputArea(
+            value = composerText,
+            onValueChange = { composerText = it },
+            status = if (thinking) InputStatus.Thinking else InputStatus.Idle,
+            enabled = !loading,
+            onSend = { text -> chatViewModel.sendPrompt(text, session) },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .heightIn(min = ChatInputMinHeight, max = ChatInputMaxHeight)
+        )
+    }
+
+
+
+
+}
+
+@Composable
+private fun ChatTopBar(
+    historyEmpty: Boolean,
+    onOpenDrawer: () -> Unit,
+    onNewChatShortcut: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val c = KColors
+    val isDark = isSystemInDarkTheme()
+    val titleBg = if (isDark) c.messageUserBgDark else Color.White
+    val titleText = if (isDark) c.messageUserTextDark else Color(0xFF111827)
+    val backgroundColor = c.appBg.copy(alpha = 0.8f) // semi-transparent so chat content peeks through
+
+    Surface(
+        modifier = modifier,
+        color = backgroundColor,
+        tonalElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LeftIslandButton(
+                onOpenDrawer = onOpenDrawer,
+                modifier = Modifier.size(44.dp)
+            )
+
+            Box(
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(50))
+                    .then(
+                        if (!isDark) Modifier.border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(50))
+                        else Modifier
+                    )
+                    .background(titleBg)
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.app_name),
+                    color = titleText,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = MaterialTheme.typography.titleLarge.fontSize * 0.85f,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
+            }
+
+            RightIsland(
+                isNewChat = historyEmpty,
+                onNewChat = onNewChatShortcut,
+                onRenameChat = {},
+                onDeleteChat = {},
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .height(44.dp)
+            )
         }
     }
 }

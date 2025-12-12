@@ -19,8 +19,21 @@ object ServiceLocator {
         }
     }.build()
 
-    private val apiBaseUrl = BuildConfig.API_BASE_URL.takeUnless { it.isNullToken() } ?: "https://example.com/"
-    private val wsBaseUrl = BuildConfig.WS_BASE_URL.takeUnless { it.isNullToken() } ?: "wss://example.com/ws"
+    private fun normalizeApiUrl(raw: String): String {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return "https://example.com/"
+        // Retrofit requires trailing slash
+        return trimmed.trimEnd('/') + "/"
+    }
+
+    private fun normalizeWsUrl(raw: String): String {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return "wss://example.com/ws"
+        return trimmed.trimEnd('/')
+    }
+
+    private val apiBaseUrl = normalizeApiUrl(BuildConfig.API_BASE_URL.takeUnless { it.isNullToken() } ?: "")
+    private val wsBaseUrl = normalizeWsUrl(BuildConfig.WS_BASE_URL.takeUnless { it.isNullToken() } ?: "")
     val usingStubData: Boolean = apiBaseUrl.contains("example.com", ignoreCase = true)
 
     private val moshi = Moshi.Builder()

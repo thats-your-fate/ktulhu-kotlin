@@ -21,6 +21,14 @@ private val LightColors = KtulhuSemanticColors(
     messageAssistantBg = MessageAssistantBg,
     messageAssistantText = MessageAssistantText,
 
+    messageUserBgDark = MessageUserBgDark,
+    messageUserTextDark = MessageUserTextDark,
+    messageAssistantBgDark = MessageAssistantBgDark,
+    messageAssistantTextDark = MessageAssistantTextDark,
+
+
+
+
     cardBg = CardBg,
     cardBorder = CardBorder,
     cardDivider = CardDivider,
@@ -87,7 +95,7 @@ private val LightColors = KtulhuSemanticColors(
     facebookIconTintDark = FacebookIconTintDark,
 
     emailIconTint = EmailIconTint,
-    emailIconTintDark = EmailIconTintDark,
+    emailIconTintDark = EmailIconTintDark
 )
 
 
@@ -149,11 +157,11 @@ private val DarkColors = KtulhuSemanticColors(
     footerText = FooterTextDark,
     footerTextDark = FooterTextDark,
     // ===== Auth Buttons =====
-    authBtnBg = AuthBtnBg,
+    authBtnBg = AuthBtnBgDark,
     authBtnBgDark = AuthBtnBgDark,
-    authBtnText = AuthBtnText,
+    authBtnText = AuthBtnTextDark,
     authBtnTextDark = AuthBtnTextDark,
-    authBtnBorder = AuthBtnBorder,
+    authBtnBorder = AuthBtnBorderDark,
     authBtnBorderDark = AuthBtnBorderDark,
 
     // ===== Generic button border =====
@@ -172,6 +180,12 @@ private val DarkColors = KtulhuSemanticColors(
 
     emailIconTint = EmailIconTint,
     emailIconTintDark = EmailIconTintDark,
+
+    messageUserBgDark = MessageUserBgDark,
+    messageUserTextDark = MessageUserTextDark,
+    messageAssistantBgDark = MessageAssistantBgDark,
+    messageAssistantTextDark = MessageAssistantTextDark,
+
 )
 
 

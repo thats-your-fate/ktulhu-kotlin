@@ -1,8 +1,21 @@
 package com.ktulhu.ai.data.model
 
+import com.squareup.moshi.Json
+
+data class ChatThreadPayload(
+    @Json(name = "chat_id") val chat_id: String? = null,
+    @Json(name = "chatId") val chatId: String? = null,
+    val messages: List<ChatMessageDto>? = null,
+    val thread: List<ChatMessageDto>? = null
+)
+
 data class ChatThreadResponse(
-    val chat_id: String,
-    val messages: List<ChatMessageDto>?
+    @Json(name = "chat_id") val chat_id: String? = null,
+    @Json(name = "chatId") val chatId: String? = null,
+    val messages: List<ChatMessageDto>? = null,
+    val thread: List<ChatMessageDto>? = null,
+    // some backends wrap data under "data"
+    val data: ChatThreadPayload? = null
 )
 
 data class ChatMessageDto(
@@ -10,17 +23,30 @@ data class ChatMessageDto(
     val role: String?,
     val text: String?,
     val summary: String?,
-    val ts: Long?
+    val ts: Long?,
+    // backend may ship message/token instead of text
+    val message: String? = null,
+    val token: String? = null
 )
 
 data class ChatSummaryResponse(
-    val chat_id: String,
-    val summary: String?,
-    val text: String?,
-    val ts: Long?
+    @Json(name = "chat_id") val chat_id: String? = null,
+    @Json(name = "chatId") val chatId: String? = null,
+    val summary: String? = null,
+    val text: String? = null,
+    val ts: Long? = null,
+    // some payloads use "message" instead of "text"
+    val message: String? = null
 )
 
 data class ChatSummaryListResponse(
-    val chats: List<ChatSummaryResponse>?,
-    val device_hash: String?
+    val chats: List<ChatSummaryResponse>? = null,
+    @Json(name = "device_hash") val device_hash: String? = null,
+    // some backends wrap data under "data"
+    val data: ChatSummaryListPayload? = null
+)
+
+data class ChatSummaryListPayload(
+    val chats: List<ChatSummaryResponse>? = null,
+    @Json(name = "device_hash") val device_hash: String? = null
 )

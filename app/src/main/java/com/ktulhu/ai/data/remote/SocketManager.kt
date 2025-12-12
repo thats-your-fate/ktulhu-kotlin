@@ -3,6 +3,7 @@ package com.ktulhu.ai.data.remote
 import com.ktulhu.ai.viewmodel.SessionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -25,34 +26,37 @@ class SocketManager(
     private var inflightId: String? = null
     private var lastSession: SessionState? = null
     private var reconnectBackoffMs = 500L
-    private var reconnecting = false
+    private var reconnectJob: Job? = null
 
     val statusFlow = MutableSharedFlow<Status>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val tokenFlow = MutableSharedFlow<String>(extraBufferCapacity = 128)
     val summaryJsonFlow = MutableSharedFlow<JSONObject>(extraBufferCapacity = 64)
     val systemJsonFlow = MutableSharedFlow<JSONObject>(extraBufferCapacity = 16)
+    val messageJsonFlow = MutableSharedFlow<JSONObject>(extraBufferCapacity = 64)
     val doneFlow = MutableSharedFlow<Unit>(extraBufferCapacity = 16)
 
     fun ensureConnected(session: SessionState) {
+        val previous = lastSession
         lastSession = session
         val ws = webSocket
-        if (ws != null && (ws.send(ByteString.EMPTY) || ws.send("ping").also { }) ) {
-            // if it doesn't throw, it's probably okay; but we won't rely on it
+        if (ws != null) {
+            if (previous != null && previous != session) {
+                sendRegister(session)
+            }
+            return
         }
-        if (ws != null) return
 
         connect(session)
     }
 
     private fun connect(session: SessionState) {
-        if (reconnecting) return
-        reconnecting = true
+        reconnectJob?.cancel()
         scope.launch { statusFlow.emit(Status.Connecting) }
 
         val request = Request.Builder().url(wsUrl).build()
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(ws: WebSocket, response: Response) {
-                reconnecting = false
+                reconnectJob?.cancel()
                 reconnectBackoffMs = 500
                 scope.launch { statusFlow.emit(Status.Open) }
                 sendRegister(session)
@@ -82,10 +86,10 @@ class SocketManager(
 
     private fun scheduleReconnect() {
         val session = lastSession ?: return
-        scope.launch {
+        reconnectJob?.cancel()
+        reconnectJob = scope.launch {
             kotlinx.coroutines.delay(reconnectBackoffMs)
             reconnectBackoffMs = (reconnectBackoffMs * 2).coerceAtMost(8000)
-            reconnecting = false
             connect(session)
         }
     }
@@ -149,21 +153,24 @@ class SocketManager(
                 return@launch
             }
 
-            when (msg.optString("type")) {
-                "system" -> {
-                    systemJsonFlow.emit(msg)
-                    return@launch
-                }
-                "summary" -> {
-                    if (msg.has("chat_id")) summaryJsonFlow.emit(msg)
-                }
+            messageJsonFlow.emit(msg)
+
+            // Some backends send "type", others "msg_type"
+            val msgType = msg.optString("type").ifBlank { msg.optString("msg_type") }
+
+            when (msgType) {
+                "system" -> systemJsonFlow.emit(msg)
+                "summary" -> if (msg.has("chat_id")) summaryJsonFlow.emit(msg)
             }
 
-            // token
-            msg.optString("token", null)?.let { tokenFlow.emit(it) }
+            // token-like payloads (token / text / message)
+            val chunk = msg.optString("token").takeIf { it.isNotBlank() }
+                ?: msg.optString("text").takeIf { it.isNotBlank() }
+                ?: msg.optString("message").takeIf { it.isNotBlank() }
+            chunk?.let { tokenFlow.emit(it) }
 
             // done
-            if (msg.optBoolean("done", false)) {
+            if (msg.optBoolean("done", false) || msgType == "done") {
                 doneFlow.emit(Unit)
                 inflightId = null
             }

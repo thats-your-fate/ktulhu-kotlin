@@ -27,6 +27,20 @@ android {
             ?.takeIf { it.isNotBlank() } ?: "wss://example.com/ws"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("String", "WS_BASE_URL", "\"$wsBaseUrl\"")
+        fun readProp(key: String, fallback: String = ""): String {
+            val value = (project.findProperty(key) as? String) ?: localProps.getProperty(key)
+            return value?.takeIf { it.isNotBlank() } ?: fallback
+        }
+        val googleClientId = readProp("VITE_GOOGLE_CLIENT_ID")
+        val appleClientId = readProp("VITE_APPLE_CLIENT_ID")
+        val appleRedirect = readProp("VITE_APPLE_REDIRECT_URI")
+        val fbAppId = readProp("VITE_FB_APP_ID")
+        val fbSecret = readProp("FB_APP_SECRET")
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
+        buildConfigField("String", "APPLE_CLIENT_ID", "\"$appleClientId\"")
+        buildConfigField("String", "APPLE_REDIRECT_URI", "\"$appleRedirect\"")
+        buildConfigField("String", "FB_APP_ID", "\"$fbAppId\"")
+        buildConfigField("String", "FB_APP_SECRET", "\"$fbSecret\"")
     }
 
 
@@ -73,6 +87,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.ui:ui-text-google-fonts")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.8.4")

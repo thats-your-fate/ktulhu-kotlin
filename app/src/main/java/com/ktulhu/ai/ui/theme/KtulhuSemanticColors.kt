@@ -21,6 +21,12 @@ data class KtulhuSemanticColors(
     val messageAssistantBg: Color,
     val messageAssistantText: Color,
 
+    val messageUserBgDark: Color,
+    val messageUserTextDark: Color,
+    val messageAssistantBgDark: Color,
+    val messageAssistantTextDark: Color,
+
+
     // ===== Cards / Panels =====
     val cardBg: Color,
     val cardBorder: Color,

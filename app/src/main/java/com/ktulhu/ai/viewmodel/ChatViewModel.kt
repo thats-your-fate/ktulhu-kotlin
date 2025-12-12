@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 class ChatViewModel : ViewModel() {
 
@@ -49,6 +50,12 @@ class ChatViewModel : ViewModel() {
                 socket.doneFlow.collect {
                     currentAssistantId = null
                     _thinking.value = false
+                }
+            }
+
+            viewModelScope.launch {
+                socket.systemJsonFlow.collect { json ->
+                    handleSystemMessage(json)
                 }
             }
         }
@@ -116,5 +123,25 @@ class ChatViewModel : ViewModel() {
 
     fun clear() {
         _history.value = emptyList()
+    }
+
+    private fun handleSystemMessage(json: JSONObject) {
+        val text = json.optString("text").ifBlank {
+            json.optString("message").ifBlank { json.optString("token") }
+        }
+        if (text.isNotBlank()) {
+            val systemMsg = ChatMessage(
+                id = "sys-${System.currentTimeMillis()}",
+                role = "system",
+                content = text,
+                ts = System.currentTimeMillis()
+            )
+            _history.update { it + systemMsg }
+        }
+
+        if (json.optBoolean("done", false)) {
+            currentAssistantId = null
+            _thinking.value = false
+        }
     }
 }

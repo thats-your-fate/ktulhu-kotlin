@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">Ktulhu Ai</string>
+
+    <!-- Auth -->
+    <string name="auth_sign_in_title">Anmelden</string>
+    <string name="auth_sign_in">Anmelden</string>
+    <string name="auth_signing_in">Anmeldung läuft...</string>
+    <string name="auth_email_label">E-Mail</string>
+    <string name="auth_password_label">Passwort</string>
+    <string name="auth_need_account">Noch kein Konto? Registrieren</string>
+    <string name="auth_back">Zurück</string>
+    <string name="auth_create_title">Konto erstellen</string>
+    <string name="auth_create">Konto erstellen</string>
+    <string name="auth_creating">Erstellen...</string>
+    <string name="auth_already_have">Schon ein Konto? Anmelden</string>
+    <string name="auth_continue_google">Mit Google fortfahren</string>
+    <string name="auth_continue_apple">Mit Apple fortfahren</string>
+    <string name="auth_continue_facebook">Mit Facebook fortfahren</string>
+    <string name="auth_continue_email">Mit E-Mail fortfahren</string>
+    <string name="auth_continue_anonymous">Anonyme Sitzung starten</string>
+
+    <!-- Hero copy -->
+    <string name="hero_message_workspace">Sicher chatten, ohne deinen Arbeitsplatz zu verlassen.</string>
+    <string name="hero_message_brainstorm">Brainstorme Features, Dokus und Ideen in Sekunden.</string>
+    <string name="hero_message_secure">Sichere, private Unterhaltungen mit Ktulhu.</string>
+
+    <!-- Chat -->
+    <string name="chat_placeholder">Frage Ktulhu…</string>
+    <string name="chat_send">Senden</string>
+    <string name="chat_new_chat">Neuer Chat</string>
+    <string name="chat_menu">Chat-Menü</string>
+    <string name="chat_rename">Chat umbenennen</string>
+    <string name="chat_delete">Chat löschen</string>
+    <string name="chat_login_profile">Login / Profil</string>
+    <string name="chat_menu_title">Menü</string>
+</resources>

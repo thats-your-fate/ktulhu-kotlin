@@ -43,7 +43,11 @@ class ChatSummariesViewModel : ViewModel() {
 
     private fun applyChatSummaryUpdate(json: JSONObject) {
         val chatId = json.optString("chat_id", null) ?: return
-        val summaryText = clean(json.optString("summary", null) ?: json.optString("text", null))
+        val summaryText = clean(
+            json.optString("summary", null)
+                ?: json.optString("text", null)
+                ?: json.optString("message", null)
+        )
         val ts = json.optLong("ts", System.currentTimeMillis())
 
         val updated = ChatSummary(
