@@ -29,8 +29,16 @@
     <string name="chat_send">Send</string>
     <string name="chat_new_chat">New chat</string>
     <string name="chat_menu">Chat menu</string>
+    <string name="chat_open">Open chat</string>
     <string name="chat_rename">Rename chat</string>
     <string name="chat_delete">Delete chat</string>
     <string name="chat_login_profile">Login / Profile</string>
     <string name="chat_menu_title">Menu</string>
+    <string name="chat_copy">Copy</string>
+    <string name="chat_copied">Copied</string>
+    <string name="chat_share">Share</string>
+    <string name="chat_share_title">Share message</string>
+    <string name="chat_add_attachment">Add attachment</string>
+    <string name="upload_image">Upload image</string>
+    <string name="upload_file">Upload file</string>
 </resources>

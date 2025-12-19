@@ -27,6 +27,7 @@ class ChatSummariesViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val list = repo.loadChatSummaries(deviceHash)
+                    .sortedByDescending { it.ts }
                 _summaries.value = list
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -71,5 +72,25 @@ class ChatSummariesViewModel : ViewModel() {
         t = t.replace(Regex("^\\?\\s*"), "")
         t = t.trim()
         return t.ifBlank { null }
+    }
+
+    fun deleteChat(chatId: String) {
+        viewModelScope.launch {
+            _summaries.update { list -> list.filterNot { it.chatId == chatId } }
+            runCatching { repo.deleteChat(chatId) }.onFailure { it.printStackTrace() }
+        }
+    }
+
+    fun renameChat(chatId: String, newTitle: String) {
+        viewModelScope.launch {
+            val trimmed = newTitle.trim()
+            if (trimmed.isBlank()) return@launch
+            _summaries.update { list ->
+                list.map { chat ->
+                    if (chat.chatId == chatId) chat.copy(summary = trimmed, text = trimmed) else chat
+                }
+            }
+            // No backend endpoint available; local update only
+        }
     }
 }

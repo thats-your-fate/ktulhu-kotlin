@@ -24,9 +24,19 @@ data class ChatMessageDto(
     val text: String?,
     val summary: String?,
     val ts: Long?,
+    val language: String? = null,
     // backend may ship message/token instead of text
     val message: String? = null,
-    val token: String? = null
+    val token: String? = null,
+    val attachments: List<ChatMessageAttachmentDto>? = null
+)
+
+data class ChatMessageAttachmentDto(
+    val id: String?,
+    val filename: String?,
+    @Json(name = "mime_type") val mime_type: String? = null,
+    val path: String?,
+    val size: Long? = null
 )
 
 data class ChatSummaryResponse(

@@ -11,6 +11,7 @@ import com.ktulhu.ai.ui.screens.AuthScreen
 import com.ktulhu.ai.ui.screens.ChatShellScreen
 import com.ktulhu.ai.ui.screens.EmailLoginScreen
 import com.ktulhu.ai.ui.screens.EmailRegisterScreen
+import com.ktulhu.ai.ui.screens.SettingsScreen
 import com.ktulhu.ai.viewmodel.AuthViewModel
 import com.ktulhu.ai.viewmodel.SessionViewModel
 
@@ -61,7 +62,24 @@ fun KtulhuNavHost(
         }
 
         composable(Screen.Main.route) {
-            ChatShellScreen(sessionViewModel = sessionViewModel)
+            ChatShellScreen(
+                sessionViewModel = sessionViewModel,
+                onOpenSettings = { navController.navigate(Screen.Settings.route) }
+            )
+        }
+
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                authViewModel = authViewModel,
+                sessionState = sessionState,
+                onBack = { navController.popBackStack() },
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Screen.Auth.route) {
+                        popUpTo(Screen.Auth.route) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }

@@ -29,6 +29,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         private const val STORAGE_KEY = "ktulhu_auth_user"
     }
 
+    private val rawGoogleClientId: String = com.ktulhu.ai.BuildConfig.GOOGLE_CLIENT_ID.orEmpty()
+    val googleClientId: String = sanitizeClientId(rawGoogleClientId)
+
     private val prefs: SharedPreferences =
         application.getSharedPreferences("auth_prefs", Application.MODE_PRIVATE)
 
@@ -42,6 +45,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadPersistedUser()
+    }
+
+    private fun sanitizeClientId(value: String): String {
+        val trimmed = value.trim()
+        if (trimmed.isBlank() || trimmed.equals("null", ignoreCase = true)) return ""
+        // local.properties sometimes contains quoted values: KEY="..."
+        return trimmed.trim('"').trim()
     }
 
     private fun loadPersistedUser() {
@@ -87,13 +97,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loginGoogle(idToken: String) = launchAuth {
+        if (idToken.isBlank() || !idToken.contains(".")) {
+            throw IllegalArgumentException("Google sign-in not configured: missing ID token")
+        }
         val res = AuthApi.loginGoogle(idToken, deviceHash)
         persist(AuthUser(res.user_id, res.email, res.jwt, "google"))
-    }
-
-    fun loginApple(idToken: String) = launchAuth {
-        val res = AuthApi.loginApple(idToken, deviceHash)
-        persist(AuthUser(res.user_id, res.email, res.jwt, "apple"))
     }
 
     fun loginFacebook(accessToken: String) = launchAuth {
@@ -107,6 +115,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun registerEmail(email: String, password: String) = launchAuth {
+        validateRegistrationPassword(password)
         val res = AuthApi.registerEmail(email, password, deviceHash)
         persist(AuthUser(res.user_id, res.email, res.jwt, "email"))
     }
@@ -114,6 +123,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun logout() {
         persist(null)
         _uiState.value = AuthUiState()
+    }
+
+    fun setError(message: String) {
+        _uiState.value = AuthUiState(loading = false, error = message)
+    }
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    private fun validateRegistrationPassword(password: String) {
+        val hasMinLen = password.length >= 8
+        val hasUpper = password.any { it.isUpperCase() }
+        val hasDigit = password.any { it.isDigit() }
+        if (!hasMinLen || !hasUpper || !hasDigit) {
+            throw IllegalArgumentException(
+                "Password must be at least 8 characters and include 1 uppercase letter and 1 number"
+            )
+        }
     }
 
     private fun launchAuth(action: suspend () -> Unit) = viewModelScope.launch {

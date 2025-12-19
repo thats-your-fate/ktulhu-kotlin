@@ -28,6 +28,8 @@ import com.ktulhu.ai.ui.theme.KColors
 fun AuthButton(
     text: String,
     icon: Painter? = null,
+    tintIcon: Boolean = true,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val bg = KColors.authBtnBg
@@ -41,7 +43,7 @@ fun AuthButton(
             .clip(RoundedCornerShape(12.dp))
             .border(width = 1.dp, color = border, shape = RoundedCornerShape(12.dp))
             .background(bg)
-            .clickable { onClick() }
+            .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -51,7 +53,7 @@ fun AuthButton(
                 painter = icon,
                 contentDescription = text,
                 modifier = Modifier.size(24.dp),
-                colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.85f))
+                colorFilter = if (tintIcon) ColorFilter.tint(textColor.copy(alpha = 0.85f)) else null
             )
         }
 

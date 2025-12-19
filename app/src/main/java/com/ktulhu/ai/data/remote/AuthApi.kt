@@ -28,26 +28,36 @@ object AuthApi {
     )
 
     suspend fun loginGoogle(idToken: String, deviceHash: String): AuthResponse =
-        post("google", mapOf("id_token" to idToken, "device_hash" to deviceHash))
-
-    suspend fun loginApple(idToken: String, deviceHash: String): AuthResponse =
-        post("apple", mapOf("id_token" to idToken, "device_hash" to deviceHash))
+        post("google", mapOf("id_token" to idToken, "device_hash" to deviceHash), deviceHash)
 
     suspend fun loginFacebook(token: String, deviceHash: String): AuthResponse =
-        post("facebook", mapOf("access_token" to token, "device_hash" to deviceHash))
+        post("facebook", mapOf("access_token" to token, "device_hash" to deviceHash), deviceHash)
 
     suspend fun loginEmail(email: String, password: String, deviceHash: String): AuthResponse =
-        post("login", mapOf("email" to email, "password" to password, "device_hash" to deviceHash))
+        post(
+            "login",
+            mapOf("email" to email, "password" to password, "device_hash" to deviceHash),
+            deviceHash
+        )
 
     suspend fun registerEmail(email: String, password: String, deviceHash: String): AuthResponse =
-        post("register", mapOf("email" to email, "password" to password, "device_hash" to deviceHash))
+        post(
+            "register",
+            mapOf("email" to email, "password" to password, "device_hash" to deviceHash),
+            deviceHash
+        )
 
-    private suspend fun post(path: String, payload: Map<String, String>): AuthResponse =
+    private suspend fun post(
+        path: String,
+        payload: Map<String, String>,
+        deviceHash: String
+    ): AuthResponse =
         withContext(Dispatchers.IO) {
             val jsonBody = JSONObject(payload).toString()
             val body = jsonBody.toRequestBody(mediaType)
             val request = Request.Builder()
                 .url("$BASE/$path")
+                .addHeader("X-Device-Hash", deviceHash)
                 .post(body)
                 .build()
 

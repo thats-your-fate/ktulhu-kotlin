@@ -43,6 +43,17 @@ class ChatRepository(
                     id = m.id ?: "$resolvedChatId-$i",
                     role = m.role ?: "assistant",
                     content = cleanContent(content),
+                    attachments = m.attachments.orEmpty().mapNotNull { att ->
+                        val path = att.path?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                        ChatAttachment(
+                            id = att.id ?: path,
+                            filename = att.filename ?: "attachment",
+                            mimeType = att.mime_type,
+                            previewBase64 = null,
+                            path = path
+                        )
+                    },
+                    language = m.language,
                     ts = m.ts ?: System.currentTimeMillis()
                 )
             }
@@ -63,6 +74,7 @@ class ChatRepository(
 
             // ---- NEW: load thread and try to find summary message ----
             val rawThread = api.getChatThreadRaw(chatId).use { it.string() }
+            val (parsedId, parsedMessages) = parseThreadJson(rawThread, chatId)
             var summaryMsg = extractSummaryFromRaw(rawThread)
 
             val summaryText = summaryMsg?.text
@@ -71,13 +83,26 @@ class ChatRepository(
                 ?: chat.text
                 ?: chat.message
 
+            // compute recency using latest message or summary ts
+            val latestMsgTsFromParsed = parsedMessages.maxOfOrNull { it.ts ?: 0L } ?: 0L
+            val summaryTs = summaryMsg?.ts ?: 0L
+            val chatTs = chat.ts ?: 0L
+            val resolvedTs = listOf(latestMsgTsFromParsed, summaryTs, chatTs)
+                .maxOrNull()
+                ?.takeIf { it > 0 } ?: System.currentTimeMillis()
+
             ChatSummary(
-                chatId = chatId,
+                chatId = parsedId.takeUnless { it.isBlank() } ?: chatId,
                 summary = cleanSummaryText(summaryText),
                 text = cleanSummaryText(chat.text ?: chat.message),
-                ts = chat.ts ?: System.currentTimeMillis()
+                ts = resolvedTs
             )
         }.sortedByDescending { it.ts }
+    }
+
+    suspend fun deleteChat(chatId: String) {
+        if (useStubData) return
+        runCatching { api.deleteChatThread(chatId) }.onFailure { it.printStackTrace() }
     }
 
     private fun parseThreadJson(raw: String, fallbackChatId: String): Pair<String, List<ChatMessageDto>> {
@@ -94,14 +119,31 @@ class ChatRepository(
             val parsed = mutableListOf<ChatMessageDto>()
             for (i in 0 until messagesArray.length()) {
                 val item = messagesArray.optJSONObject(i) ?: continue
+                val attsArray = item.optJSONArray("attachments") ?: JSONArray()
+                val attachments = buildList {
+                    for (j in 0 until attsArray.length()) {
+                        val objAtt = attsArray.optJSONObject(j) ?: continue
+                        add(
+                            ChatMessageAttachmentDto(
+                                id = objAtt.optString("id").takeIf { it.isNotBlank() },
+                                filename = objAtt.optString("filename").takeIf { it.isNotBlank() },
+                                mime_type = objAtt.optString("mime_type").takeIf { it.isNotBlank() },
+                                path = objAtt.optString("path").takeIf { it.isNotBlank() },
+                                size = objAtt.optLong("size", 0L).takeIf { it > 0L }
+                            )
+                        )
+                    }
+                }
                 parsed += ChatMessageDto(
                     id = item.optString("id").takeIf { it.isNotBlank() },
                     role = item.optString("role").takeIf { it.isNotBlank() },
                     text = item.optString("text").takeIf { it.isNotBlank() },
                     summary = item.optString("summary").takeIf { it.isNotBlank() },
+                    language = item.optString("language").takeIf { it.isNotBlank() },
                     ts = item.optLong("ts", 0L).takeIf { it != 0L },
-                        message = item.optString("message").takeIf { it.isNotBlank() },
-                        token = item.optString("token").takeIf { it.isNotBlank() }
+                    message = item.optString("message").takeIf { it.isNotBlank() },
+                    token = item.optString("token").takeIf { it.isNotBlank() },
+                    attachments = attachments.takeIf { it.isNotEmpty() }
                 )
             }
             resolvedChatId to parsed
@@ -128,6 +170,7 @@ class ChatRepository(
                         role = m.optString("role").takeIf { it.isNotBlank() },
                         text = m.optString("text").takeIf { it.isNotBlank() },
                         summary = m.optString("summary").takeIf { it.isNotBlank() },
+                        language = m.optString("language").takeIf { it.isNotBlank() },
                         ts = m.optLong("ts", 0L).takeIf { it != 0L },
                         message = m.optString("message").takeIf { it.isNotBlank() },
                         token = m.optString("token").takeIf { it.isNotBlank() }
@@ -161,12 +204,14 @@ class ChatRepository(
                 id = "$chatId-1",
                 role = "user",
                 content = "Hey Ktulhu, can you summarize Lovecraft's best stories?",
+                language = "en",
                 ts = now - 60_000
             ),
             ChatMessage(
                 id = "$chatId-2",
                 role = "assistant",
                 content = "Sure! The Call of Cthulhu, At the Mountains of Madness, and The Shadow over Innsmouth are perennial favorites.",
+                language = "en",
                 ts = now - 30_000
             )
         )

@@ -35,6 +35,17 @@ class SocketManager(
     val messageJsonFlow = MutableSharedFlow<JSONObject>(extraBufferCapacity = 64)
     val doneFlow = MutableSharedFlow<Unit>(extraBufferCapacity = 16)
 
+    data class PromptAttachment(
+        val id: String,
+        val filename: String,
+        val mimeType: String?,
+        val path: String,
+        val size: Long,
+        val description: String? = null, // local-only (derived), not sent
+        val ocrText: String? = null, // local-only (derived), not sent
+        val previewBase64: String? = null // local preview only, not sent
+    )
+
     fun ensureConnected(session: SessionState) {
         val previous = lastSession
         lastSession = session
@@ -92,7 +103,7 @@ class SocketManager(
             reconnectBackoffMs = (reconnectBackoffMs * 2).coerceAtMost(8000)
             connect(session)
         }
-    }
+    }   
 
     private fun sendRegister(session: SessionState) {
         val payload = JSONObject().apply {
@@ -106,10 +117,58 @@ class SocketManager(
         webSocket?.send(payload.toString())
     }
 
-    fun sendPrompt(text: String, session: SessionState): String? {
+    fun sendPrompt(
+        text: String,
+        session: SessionState,
+        attachments: List<PromptAttachment> = emptyList(),
+        language: String? = null
+    ): String? {
         ensureConnected(session)
         val ws = webSocket ?: return null
         val requestId = UUID.randomUUID().toString()
+
+        val attachmentsArray = org.json.JSONArray().apply {
+            attachments.forEach { att ->
+                val obj = JSONObject().apply {
+                    put("id", att.id)
+                    put("filename", att.filename)
+                    att.mimeType?.let { put("mime_type", it) }
+                    put("path", att.path)
+                    put("size", att.size)
+                }
+                put(obj)
+            }
+        }
+
+        val metadata = JSONObject().apply {
+            val imageAnalysis = org.json.JSONArray()
+            attachments.forEach { att ->
+                val labels = att.description
+                    ?.split(',')
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotBlank() }
+                    .orEmpty()
+                val ocr = att.ocrText?.trim().orEmpty()
+                if (labels.isEmpty() && ocr.isBlank()) return@forEach
+
+                val obj = JSONObject().apply {
+                    put("attachment_id", att.id)
+                    put("filename", att.filename)
+                    att.mimeType?.let { put("mime_type", it) }
+                    if (labels.isNotEmpty()) {
+                        put("labels", org.json.JSONArray(labels))
+                    }
+                    if (ocr.isNotBlank()) {
+                        put("ocr_text", ocr)
+                    }
+                    put("source", "ml_kit")
+                }
+                imageAnalysis.put(obj)
+            }
+            if (imageAnalysis.length() > 0) {
+                put("image_analysis", imageAnalysis)
+            }
+        }.takeIf { it.length() > 0 }
 
         val payload = JSONObject().apply {
             put("msg_type", "prompt")
@@ -118,6 +177,10 @@ class SocketManager(
             put("session_id", session.sessionId)
             put("device_hash", session.deviceHash)
             put("text", text)
+            // Always send `attachments` so serde can deserialize consistently.
+            put("attachments", attachmentsArray)
+            metadata?.let { put("metadata", it) }
+            language?.let { put("language", it) }
         }
         ws.send(payload.toString())
         inflightId = requestId

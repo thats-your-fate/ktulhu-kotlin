@@ -3,6 +3,7 @@ package com.ktulhu.ai
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle
 import androidx.compose.material3.Surface
@@ -22,17 +23,19 @@ import com.ktulhu.ai.viewmodel.SessionViewModel
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // install splashscreen per theme
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         // ✅ Correct edge-to-edge call for your dependency versions
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(
-                lightScrim = Color.White.copy(alpha = 0.2f).toArgb(),
-                darkScrim = Color.Black.copy(alpha = 0.2f).toArgb()
+                lightScrim = Color.Transparent.toArgb(),
+                darkScrim = Color.Transparent.toArgb()
             ),
             navigationBarStyle = SystemBarStyle.auto(
-                lightScrim = Color.White.copy(alpha = 0.2f).toArgb(),
-                darkScrim = Color.Black.copy(alpha = 0.2f).toArgb()
+                lightScrim = Color.Transparent.toArgb(),
+                darkScrim = Color.Transparent.toArgb()
             )
         )
 

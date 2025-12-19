@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -27,7 +28,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.ktulhu.ai.R
+import com.ktulhu.ai.ui.theme.KColors
 import com.ktulhu.ai.viewmodel.AuthViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun EmailLoginScreen(
@@ -43,6 +46,13 @@ fun EmailLoginScreen(
 
     LaunchedEffect(user) {
         if (user != null) onComplete()
+    }
+
+    LaunchedEffect(uiState.error) {
+        if (uiState.error != null) {
+            delay(5_000)
+            vm.clearError()
+        }
     }
 
     Column(
@@ -87,7 +97,13 @@ fun EmailLoginScreen(
         Button(
             onClick = { vm.loginEmail(email.trim(), password) },
             modifier = Modifier.fillMaxWidth(),
-            enabled = email.isNotBlank() && password.isNotBlank() && !uiState.loading
+            enabled = email.isNotBlank() && password.isNotBlank() && !uiState.loading,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = KColors.btnDefaultBg,
+                contentColor = KColors.btnDefaultText,
+                disabledContainerColor = KColors.cardBorder,
+                disabledContentColor = KColors.cardSubtitle
+            )
         ) {
             val buttonText = if (uiState.loading) {
                 stringResource(R.string.auth_signing_in)
@@ -97,11 +113,17 @@ fun EmailLoginScreen(
             Text(buttonText)
         }
 
-        TextButton(onClick = onRegisterClick) {
+        TextButton(
+            onClick = onRegisterClick,
+            colors = ButtonDefaults.textButtonColors(contentColor = KColors.cardSubtitle)
+        ) {
             Text(stringResource(R.string.auth_need_account))
         }
 
-        TextButton(onClick = onBack) {
+        TextButton(
+            onClick = onBack,
+            colors = ButtonDefaults.textButtonColors(contentColor = KColors.cardSubtitle)
+        ) {
             Text(stringResource(R.string.auth_back))
         }
     }

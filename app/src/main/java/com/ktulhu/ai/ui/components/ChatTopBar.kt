@@ -5,10 +5,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,63 +33,77 @@ fun ChatTopBar(
     historyEmpty: Boolean,
     onOpenDrawer: () -> Unit,
     onNewChatShortcut: () -> Unit,
+    onDeleteChat: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ){
     val c = KColors
     val isDark = isSystemInDarkTheme()
     val titleBg = if (isDark) c.messageUserBgDark else Color.White
     val titleText = if (isDark) c.messageUserTextDark else Color(0xFF111827)
-    val backgroundColor = c.appBg.copy(alpha = 0.8f) // semi-transparent so chat content peeks through
+    val backgroundColor = if (isDark) {
+        Color.Black.copy(alpha = 0.30f)
+    } else {
+        Color.White.copy(alpha = 0.72f)
+    }
 
     Surface(
         modifier = modifier,
         color = backgroundColor,
         tonalElevation = 0.dp
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .statusBarsPadding()
+                .padding(top = 12.dp)
         ) {
-            LeftIslandButton(
-                onOpenDrawer = onOpenDrawer,
-                modifier = Modifier.size(44.dp)
-            )
-
-            Box(
+            Row(
                 modifier = Modifier
-                    .wrapContentWidth()
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(50))
-                    .then(
-                        if (!isDark) Modifier.border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(50))
-                        else Modifier
-                    )
-                    .background(titleBg)
-                    .padding(horizontal = 14.dp),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .height(64.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    stringResource(R.string.app_name),
-                    color = titleText,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = MaterialTheme.typography.titleLarge.fontSize * 0.85f,
-                        fontWeight = FontWeight.SemiBold
+                LeftIslandButton(
+                    onOpenDrawer = onOpenDrawer,
+                    modifier = Modifier.size(44.dp)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .wrapContentWidth()
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(50))
+                        .then(
+                            if (!isDark) Modifier.border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(50))
+                            else Modifier
+                        )
+                        .background(titleBg)
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        stringResource(R.string.app_name),
+                        color = titleText,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = MaterialTheme.typography.titleLarge.fontSize * 0.85f,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     )
+                }
+
+                RightIsland(
+                    isNewChat = historyEmpty,
+                    onNewChat = onNewChatShortcut,
+                    onRenameChat = {},
+                    onDeleteChat = onDeleteChat,
+                    onAccountClick = onOpenSettings,
+                    modifier = Modifier
+                        .wrapContentWidth()
+                        .height(44.dp)
                 )
             }
-
-            RightIsland(
-                isNewChat = historyEmpty,
-                onNewChat = onNewChatShortcut,
-                onRenameChat = {},
-                onDeleteChat = {},
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .height(44.dp)
-            )
         }
     }
 }

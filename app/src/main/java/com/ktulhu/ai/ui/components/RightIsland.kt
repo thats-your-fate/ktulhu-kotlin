@@ -39,6 +39,7 @@ fun RightIsland(
     onNewChat: () -> Unit,
     onRenameChat: () -> Unit,
     onDeleteChat: () -> Unit,
+    onAccountClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val c = KColors
@@ -66,18 +67,16 @@ fun RightIsland(
                 Arrangement.spacedBy(14.dp) // only apply spacing when 2+ icons
         ) {
 
-            if (isNewChat) {
-                Icon(
-                    imageVector = Icons.Outlined.Person2,
-                    contentDescription = stringResource(R.string.chat_login_profile),
-                    tint = content,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable { onNewChat() }
-                )
+            Icon(
+                imageVector = Icons.Outlined.Person2,
+                contentDescription = stringResource(R.string.chat_login_profile),
+                tint = content,
+                modifier = Modifier
+                    .size(28.dp)
+                    .clickable { onAccountClick() }
+            )
 
-            } else {
-
+            if (!isNewChat) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_edit_square),
                     contentDescription = stringResource(R.string.chat_new_chat),

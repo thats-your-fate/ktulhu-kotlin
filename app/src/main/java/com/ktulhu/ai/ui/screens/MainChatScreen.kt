@@ -1,30 +1,18 @@
 package com.ktulhu.ai.ui.screens
 
-import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,23 +24,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ktulhu.ai.R
 import com.ktulhu.ai.ui.components.ChatInputArea
 import com.ktulhu.ai.ui.components.ChatMessageBubble
+import com.ktulhu.ai.ui.components.ChatTopBar
 import com.ktulhu.ai.ui.components.InputStatus
-import com.ktulhu.ai.ui.components.LeftIslandButton
-import com.ktulhu.ai.ui.components.RightIsland
-import com.ktulhu.ai.ui.theme.KColors
-import com.ktulhu.ai.ui.util.ViewportInfo
 import com.ktulhu.ai.viewmodel.ChatViewModel
 import com.ktulhu.ai.viewmodel.SessionState
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlin.math.roundToInt
+import kotlin.math.max
 
 @Composable
 fun MainChatScreen(
@@ -61,61 +46,88 @@ fun MainChatScreen(
     chatViewModel: ChatViewModel = viewModel(),
     onOpenDrawer: () -> Unit = {},
     onNewChatShortcut: () -> Unit = {},
-    viewportInfo: ViewportInfo? = null
+    onDeleteChat: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onUploadImage: () -> Unit = {},
+    onUploadFile: () -> Unit = {}
 ) {
-    val c = KColors
-
     val history by chatViewModel.history.collectAsState()
     val loading by chatViewModel.loading.collectAsState()
     val thinking by chatViewModel.thinking.collectAsState()
-
-    var composerText by remember(session.chatId) { mutableStateOf("") }
-
-    val listState = rememberLazyListState()
-    val currentLastIndex by rememberUpdatedState(history.lastIndex)
-
-    // Load history when chat changes
-    LaunchedEffect(session.chatId) {
-        chatViewModel.loadHistory(session.chatId)
-    }
-
-    // Scroll to last automatically when new message added
-    LaunchedEffect(history.lastOrNull()?.id) {
-        if (history.isNotEmpty()) {
-            listState.animateScrollToItem(history.lastIndex)
-        }
-    }
-    // Keep bottom visible while streaming into the last message (content changes but id stays)
-    LaunchedEffect(history.lastOrNull()?.let { it.id + ":" + it.content.length }) {
-        if (history.isNotEmpty()) {
-            listState.animateScrollToItem(history.lastIndex)
-        }
-    }
-
-    // Auto follow-down when user is already at bottom
-    LaunchedEffect(listState, history) {
-        if (history.isEmpty()) return@LaunchedEffect
-        snapshotFlow {
-            val items = listState.layoutInfo.visibleItemsInfo
-            val lastVisible = items.lastOrNull()
-            val viewportEnd = listState.layoutInfo.viewportEndOffset
-            val bottom = lastVisible?.offset?.plus(lastVisible.size) ?: 0
-            Triple(lastVisible?.index, bottom, viewportEnd)
-        }.collect { (visibleIndex, bottom, viewportEnd) ->
-            if (visibleIndex == currentLastIndex && bottom > viewportEnd) {
-                listState.animateScrollBy((bottom - viewportEnd).toFloat())
-            }
-        }
-    }
-
-    val usingViewport = (viewportInfo?.visibleHeight ?: 0) > 0
+    val attachments by chatViewModel.attachments.collectAsState()
 
     // Layout constants
     val ChatInputMinHeight = 64.dp
     val ChatInputMaxHeight = 200.dp
     val ChatListExtraBottomPadding = 24.dp
     val TopBarHeight = 64.dp
-    val ExtraBottomPadding = 16.dp
+
+    var composerText by remember(session.chatId) { mutableStateOf("") }
+    var chatInputHeightPx by remember { mutableStateOf(0) }
+    val chatInputHeightDp = with(LocalDensity.current) { chatInputHeightPx.toDp() }
+    val effectiveBottomPadding = if (chatInputHeightDp > ChatInputMinHeight) {
+        chatInputHeightDp + ChatListExtraBottomPadding
+    } else {
+        ChatInputMinHeight + ChatListExtraBottomPadding
+    }
+    val bottomPaddingPx = with(LocalDensity.current) { effectiveBottomPadding.toPx().roundToInt() }
+
+    val listState = rememberLazyListState()
+    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    var autoScroll by remember { mutableStateOf(true) }
+    var pendingInitialScroll by remember(session.chatId) { mutableStateOf(true) }
+
+    // Load history when chat changes
+    LaunchedEffect(session.chatId) {
+        chatViewModel.loadHistory(session.chatId)
+        autoScroll = true
+        pendingInitialScroll = true
+    }
+
+    suspend fun scrollToBottom() {
+        if (history.isEmpty()) return
+        // Use a huge offset so the list clamps to the absolute bottom even if the last item is taller
+        // than the viewport (e.g. many streamed tokens).
+        listState.scrollToItem(history.lastIndex, Int.MAX_VALUE)
+    }
+
+    // Track user intent: update autoScroll only when the user finishes a scroll gesture.
+    // If we recompute from layout while content is streaming, autoScroll can flip off mid-stream.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .filter { inProgress -> !inProgress }
+            .collect {
+                autoScroll = !listState.canScrollForward
+            }
+    }
+
+    // When a chat loads, jump to the bottom once (no animation) so we're on the latest message.
+    LaunchedEffect(session.chatId, history.size) {
+        if (!pendingInitialScroll) return@LaunchedEffect
+        if (history.isEmpty()) return@LaunchedEffect
+        scrollToBottom()
+        pendingInitialScroll = false
+    }
+
+    // Scroll to last automatically when new message added (animate once).
+    LaunchedEffect(history.lastOrNull()?.id) {
+        if (history.isNotEmpty() && autoScroll) {
+            listState.animateScrollToItem(history.lastIndex, Int.MAX_VALUE)
+        }
+    }
+
+    // Keep bottom visible while streaming into the last message (no animation to prevent jitter).
+    LaunchedEffect(session.chatId, listState) {
+        snapshotFlow { history.lastOrNull()?.content?.length ?: 0 }
+            .distinctUntilChanged()
+            .filter { history.isNotEmpty() }
+            .collect {
+                if (autoScroll) {
+                    scrollToBottom()
+                }
+            }
+    }
 
     Box(
         modifier = modifier
@@ -132,12 +144,14 @@ fun MainChatScreen(
                     .fillMaxWidth(),
                 state = listState,
                 contentPadding = PaddingValues(
-                    top = TopBarHeight + 8.dp, // 👈 allow scrolling under header
-                    bottom = ChatInputMinHeight + ChatListExtraBottomPadding + ExtraBottomPadding
+                    top = topInset + TopBarHeight + 12.dp, // status bar + header height + 12dp
+                    bottom = effectiveBottomPadding
                 )
             ) {
+                val lastId = history.lastOrNull()?.id
                 items(history, key = { it.id }) { msg ->
-                    ChatMessageBubble(msg)
+                    val showActions = !(thinking && msg.id == lastId && msg.role == "assistant")
+                    ChatMessageBubble(msg, showActions = showActions)
                 }
             }
         }
@@ -147,10 +161,11 @@ fun MainChatScreen(
             historyEmpty = history.isEmpty(),
             onOpenDrawer = onOpenDrawer,
             onNewChatShortcut = onNewChatShortcut,
+            onDeleteChat = onDeleteChat,
+            onOpenSettings = onOpenSettings,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(TopBarHeight)
         )
 
         // 3️⃣ Floating input (overlay)
@@ -160,80 +175,17 @@ fun MainChatScreen(
             status = if (thinking) InputStatus.Thinking else InputStatus.Idle,
             enabled = !loading,
             onSend = { text -> chatViewModel.sendPrompt(text, session) },
+            attachments = attachments,
+            onRemoveAttachment = { chatViewModel.removeAttachment(it) },
+            onUploadImage = onUploadImage,
+            onUploadFile = onUploadFile,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .heightIn(min = ChatInputMinHeight, max = ChatInputMaxHeight)
+                .onSizeChanged { size ->
+                    chatInputHeightPx = size.height
+                }
         )
-    }
-
-
-
-
-}
-
-@Composable
-private fun ChatTopBar(
-    historyEmpty: Boolean,
-    onOpenDrawer: () -> Unit,
-    onNewChatShortcut: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val c = KColors
-    val isDark = isSystemInDarkTheme()
-    val titleBg = if (isDark) c.messageUserBgDark else Color.White
-    val titleText = if (isDark) c.messageUserTextDark else Color(0xFF111827)
-    val backgroundColor = c.appBg.copy(alpha = 0.8f) // semi-transparent so chat content peeks through
-
-    Surface(
-        modifier = modifier,
-        color = backgroundColor,
-        tonalElevation = 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            LeftIslandButton(
-                onOpenDrawer = onOpenDrawer,
-                modifier = Modifier.size(44.dp)
-            )
-
-            Box(
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(50))
-                    .then(
-                        if (!isDark) Modifier.border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(50))
-                        else Modifier
-                    )
-                    .background(titleBg)
-                    .padding(horizontal = 14.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    stringResource(R.string.app_name),
-                    color = titleText,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = MaterialTheme.typography.titleLarge.fontSize * 0.85f,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                )
-            }
-
-            RightIsland(
-                isNewChat = historyEmpty,
-                onNewChat = onNewChatShortcut,
-                onRenameChat = {},
-                onDeleteChat = {},
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .height(44.dp)
-            )
-        }
     }
 }

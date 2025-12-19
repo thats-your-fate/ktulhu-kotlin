@@ -31,7 +31,9 @@ android {
             val value = (project.findProperty(key) as? String) ?: localProps.getProperty(key)
             return value?.takeIf { it.isNotBlank() } ?: fallback
         }
-        val googleClientId = readProp("VITE_GOOGLE_CLIENT_ID")
+        val googleClientId = readProp("VITE_GOOGLE_CLIENT_ID").ifBlank {
+            readProp("GOOGLE_CLIENT_ID")
+        }
         val appleClientId = readProp("VITE_APPLE_CLIENT_ID")
         val appleRedirect = readProp("VITE_APPLE_REDIRECT_URI")
         val fbAppId = readProp("VITE_FB_APP_ID")
@@ -65,6 +67,9 @@ dependencies {
 
     implementation(composeBom)
     androidTestImplementation(composeBom)
+    implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
@@ -74,12 +79,16 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
 
-    implementation("com.mikepenz:multiplatform-markdown-renderer:0.7.0")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // ML Kit (on-device image labeling + OCR; local-only usage)
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:language-id:17.0.4")
 
     // Compose
     implementation("androidx.activity:activity-compose:1.9.3")
