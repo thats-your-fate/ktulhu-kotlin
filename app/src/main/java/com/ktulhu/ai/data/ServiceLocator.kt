@@ -2,7 +2,6 @@ package com.ktulhu.ai.data
 
 import com.ktulhu.ai.BuildConfig
 import com.ktulhu.ai.data.remote.ChatApi
-import com.ktulhu.ai.data.remote.StorageApi
 import com.ktulhu.ai.data.remote.SocketManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -48,7 +47,6 @@ object ServiceLocator {
         .build()
 
     val chatApi: ChatApi = retrofit.create(ChatApi::class.java)
-    val storageApi: StorageApi = retrofit.create(StorageApi::class.java)
 
     val socketManager: SocketManager = SocketManager(
         wsUrl = wsBaseUrl,

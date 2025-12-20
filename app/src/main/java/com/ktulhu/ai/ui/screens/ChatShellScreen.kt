@@ -1,5 +1,6 @@
 package com.ktulhu.ai.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ktulhu.ai.data.ServiceLocator
 import com.ktulhu.ai.ui.components.SidebarDrawerContent
 import com.ktulhu.ai.ui.util.rememberViewportInfo
+import com.ktulhu.ai.ui.theme.KColors
 import com.ktulhu.ai.viewmodel.ChatSummariesViewModel
 import com.ktulhu.ai.viewmodel.ChatViewModel
 import com.ktulhu.ai.viewmodel.SessionViewModel
@@ -79,6 +81,8 @@ fun ChatShellScreen(
 
     val viewport = rememberViewportInfo()
 
+    val colors = KColors
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -109,6 +113,7 @@ fun ChatShellScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(colors.appBg)
                 .navigationBarsPadding()
                 .imePadding()
                 .padding(

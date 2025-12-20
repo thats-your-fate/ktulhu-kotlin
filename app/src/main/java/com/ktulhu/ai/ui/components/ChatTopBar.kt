@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,13 +38,13 @@ fun ChatTopBar(
 ){
     val c = KColors
     val isDark = isSystemInDarkTheme()
-    val titleBg = if (isDark) c.messageUserBgDark else Color.White
-    val titleText = if (isDark) c.messageUserTextDark else Color(0xFF111827)
-    val backgroundColor = if (isDark) {
-        Color.Black.copy(alpha = 0.30f)
-    } else {
-        Color.White.copy(alpha = 0.72f)
-    }
+    val overlayAlpha = if (isDark) 0.82f else 0.72f
+    val backgroundBase = c.appBg
+    val backgroundColor = backgroundBase.copy(alpha = overlayAlpha)
+    val islandBackground = if (isDark) c.messageUserBg else c.headerBg
+    val titleBg = islandBackground
+    val titleText = if (isDark) c.messageUserTextDark else c.headerTitle
+    val titleBorderColor = if (isDark) c.messageUserBg else c.headerBorder.copy(alpha = 0.6f)
 
     Surface(
         modifier = modifier,
@@ -75,10 +74,7 @@ fun ChatTopBar(
                         .wrapContentWidth()
                         .height(44.dp)
                         .clip(RoundedCornerShape(50))
-                        .then(
-                            if (!isDark) Modifier.border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(50))
-                            else Modifier
-                        )
+                        .border(1.dp, titleBorderColor, RoundedCornerShape(50))
                         .background(titleBg)
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.Center

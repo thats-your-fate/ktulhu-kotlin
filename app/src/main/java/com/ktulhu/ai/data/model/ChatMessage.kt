@@ -5,7 +5,10 @@ data class ChatAttachment(
     val filename: String,
     val mimeType: String?,
     val previewBase64: String?,
-    val path: String? = null
+    val path: String? = null,
+    val description: String? = null,
+    val ocrText: String? = null,
+    val labels: List<String>? = null
 )
 
 data class ChatMessage(

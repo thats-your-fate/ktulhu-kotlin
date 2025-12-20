@@ -25,6 +25,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
@@ -45,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -78,8 +80,13 @@ fun ChatInputArea(
     onUploadFile: () -> Unit = {}
 ) {
     val c = KColors
+    val isDark = isSystemInDarkTheme()
     val shape = RoundedCornerShape(32.dp)
     val placeholder = stringResource(placeholderRes)
+    val containerBg = if (isDark) c.textareaBgDark else c.cardBg
+    val containerBorder = if (isDark) c.textareaBorderDark else c.cardBorder
+    val textColor = if (isDark) c.textareaTextDark else c.textareaText
+    val placeholderColor = if (isDark) c.textareaPlaceholderDark else c.textareaPlaceholder
 
     val canSend = enabled && status == InputStatus.Idle
 
@@ -116,8 +123,8 @@ fun ChatInputArea(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(dynamicHeight)
-                .border(1.dp, c.cardBorder, shape)
-                .background(c.cardBg, shape)
+                .border(1.dp, containerBorder, shape)
+                .background(containerBg, shape)
                 .padding(start = 60.dp, end = 60.dp, top = 12.dp, bottom = 12.dp),
         ) {
             Column(
@@ -145,10 +152,10 @@ fun ChatInputArea(
                     value = value,
                     onValueChange = onValueChange,
                     enabled = enabled && status != InputStatus.Thinking,
-                    cursorBrush = SolidColor(c.appText),
+                    cursorBrush = SolidColor(textColor),
                     textStyle = TextStyle(
                         fontSize = 16.sp,
-                        color = c.appText,
+                        color = textColor,
                         lineHeight = 22.sp
                     ),
                     keyboardOptions = KeyboardOptions(
@@ -182,7 +189,7 @@ fun ChatInputArea(
                             if (value.isEmpty()) {
                                 Text(
                                     text = placeholder,
-                                    color = c.textareaPlaceholder,
+                                    color = placeholderColor,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontSize = 18.sp,
                                         lineHeight = 22.sp
@@ -208,15 +215,15 @@ fun ChatInputArea(
                 .padding(start = 10.dp, bottom = 10.dp)
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(c.cardBg)
-                .border(1.dp, c.cardBorder, CircleShape)
+                .background(containerBg)
+                .border(1.dp, containerBorder, CircleShape)
                 .clickable { showAttachMenu = true },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Outlined.Add,
                 contentDescription = stringResource(R.string.chat_add_attachment),
-                tint = c.appText,
+                tint = textColor,
                 modifier = Modifier.size(24.dp)
             )
             DropdownMenu(
@@ -296,6 +303,8 @@ private fun AttachmentChip(
     attachment: SocketManager.PromptAttachment,
     onRemove: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val captionColor = if (isDark) Color.White else Color.Black
     val isImage = attachment.mimeType?.startsWith("image", ignoreCase = true) == true
     val preview: ImageBitmap? = remember(attachment.previewBase64, attachment.mimeType) {
         if (!isImage) return@remember null
@@ -347,7 +356,8 @@ private fun AttachmentChip(
         Text(
             text = attachment.filename.take(12),
             style = MaterialTheme.typography.labelSmall,
-            maxLines = 1
+            maxLines = 1,
+            color = captionColor
         )
     }
 }

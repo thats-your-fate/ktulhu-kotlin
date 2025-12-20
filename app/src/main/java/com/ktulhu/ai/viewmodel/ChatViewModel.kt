@@ -115,7 +115,10 @@ class ChatViewModel : ViewModel() {
                         filename = att.filename,
                         mimeType = att.mimeType,
                         previewBase64 = att.previewBase64,
-                        path = att.path
+                        path = att.path,
+                        description = att.description,
+                        ocrText = att.ocrText,
+                        labels = att.labels
                     )
                 },
                 language = detectedLanguage,
@@ -192,15 +195,19 @@ class ChatViewModel : ViewModel() {
                     null
                 }
 
-                val (labels, ocrText) = if (isImage) analyzeImage(bytes) else (null to null)
+                val (labels, ocrText) = if (isImage) analyzeImage(bytes) else (emptyList<String>() to null)
+                val normalizedLabels = labels.filter { it.isNotBlank() }
+                val normalizedOcr = ocrText?.takeIf { it.isNotBlank() }
+                val attachmentDescription = buildAttachmentDescription(normalizedLabels, normalizedOcr)
                 val payload = PromptAttachment(
                     id = UUID.randomUUID().toString(),
                     filename = name,
                     mimeType = mime,
                     path = uri.toString(), // local-only for now (no upload)
                     size = bytes.size.toLong(),
-                    description = labels,
-                    ocrText = ocrText,
+                    description = attachmentDescription,
+                    ocrText = normalizedOcr,
+                    labels = normalizedLabels.takeIf { it.isNotEmpty() },
                     previewBase64 = previewDataUri
                 )
                 addAttachment(payload)
@@ -208,15 +215,15 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    private suspend fun analyzeImage(bytes: ByteArray): Pair<String?, String?> = runCatching {
-        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@runCatching null to null
+    private suspend fun analyzeImage(bytes: ByteArray): Pair<List<String>, String?> = runCatching {
+        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@runCatching emptyList<String>() to null
         val image = InputImage.fromBitmap(bitmap, 0)
         val labels = deriveImageLabels(image)
         val ocrText = deriveImageOcrText(image)
         labels to ocrText
-    }.getOrDefault(null to null)
+    }.getOrDefault(emptyList<String>() to null)
 
-    private suspend fun deriveImageLabels(image: InputImage): String? {
+    private suspend fun deriveImageLabels(image: InputImage): List<String> {
         val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
         val labels = suspendCancellableCoroutine<List<com.google.mlkit.vision.label.ImageLabel>> { cont ->
             cont.invokeOnCancellation { runCatching { labeler.close() } }
@@ -235,7 +242,7 @@ class ChatViewModel : ViewModel() {
             .take(3)
             .map { it.text }
             .filter { it.isNotBlank() }
-        return top.takeIf { it.isNotEmpty() }?.joinToString(", ")
+        return top
     }
 
     private suspend fun deriveImageOcrText(image: InputImage): String? {
@@ -253,6 +260,23 @@ class ChatViewModel : ViewModel() {
                 }
         }
         return text.trim().takeIf { it.isNotBlank() }
+    }
+
+    private fun buildAttachmentDescription(labels: List<String>, ocrText: String?): String? {
+        val parts = mutableListOf<String>()
+        if (labels.isNotEmpty()) {
+            parts += labels.joinToString(", ")
+        }
+        val normalizedOcr = ocrText
+            ?.split('\n')
+            ?.joinToString(" ") { it.trim() }
+            ?.replace("\\s+".toRegex(), " ")
+            ?.trim()
+        if (!normalizedOcr.isNullOrBlank()) {
+            val snippet = normalizedOcr.take(400)
+            parts += "OCR: $snippet"
+        }
+        return parts.joinToString(" | ").takeIf { it.isNotBlank() }
     }
 
     private fun resolveMeta(context: Context, uri: Uri): Pair<String, String> {

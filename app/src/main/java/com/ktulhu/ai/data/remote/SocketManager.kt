@@ -41,8 +41,9 @@ class SocketManager(
         val mimeType: String?,
         val path: String,
         val size: Long,
-        val description: String? = null, // local-only (derived), not sent
-        val ocrText: String? = null, // local-only (derived), not sent
+        val description: String? = null, // derived locally (labels/OCR summary) and sent with prompt
+        val ocrText: String? = null, // derived locally (OCR) and sent with prompt
+        val labels: List<String>? = null,
         val previewBase64: String? = null // local preview only, not sent
     )
 
@@ -135,6 +136,11 @@ class SocketManager(
                     att.mimeType?.let { put("mime_type", it) }
                     put("path", att.path)
                     put("size", att.size)
+                    att.description?.takeIf { it.isNotBlank() }?.let { put("description", it) }
+                    att.ocrText?.takeIf { it.isNotBlank() }?.let { put("ocr_text", it) }
+                    att.labels?.takeIf { it.isNotEmpty() }?.let { labels ->
+                        put("labels", org.json.JSONArray(labels))
+                    }
                 }
                 put(obj)
             }
@@ -143,11 +149,7 @@ class SocketManager(
         val metadata = JSONObject().apply {
             val imageAnalysis = org.json.JSONArray()
             attachments.forEach { att ->
-                val labels = att.description
-                    ?.split(',')
-                    ?.map { it.trim() }
-                    ?.filter { it.isNotBlank() }
-                    .orEmpty()
+                val labels = att.labels.orEmpty()
                 val ocr = att.ocrText?.trim().orEmpty()
                 if (labels.isEmpty() && ocr.isBlank()) return@forEach
 
@@ -161,6 +163,7 @@ class SocketManager(
                     if (ocr.isNotBlank()) {
                         put("ocr_text", ocr)
                     }
+                    att.description?.takeIf { it.isNotBlank() }?.let { put("summary", it) }
                     put("source", "ml_kit")
                 }
                 imageAnalysis.put(obj)

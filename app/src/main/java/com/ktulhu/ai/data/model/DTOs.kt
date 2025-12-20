@@ -36,7 +36,10 @@ data class ChatMessageAttachmentDto(
     val filename: String?,
     @Json(name = "mime_type") val mime_type: String? = null,
     val path: String?,
-    val size: Long? = null
+    val size: Long? = null,
+    val description: String? = null,
+    @Json(name = "ocr_text") val ocr_text: String? = null,
+    val labels: List<String>? = null
 )
 
 data class ChatSummaryResponse(

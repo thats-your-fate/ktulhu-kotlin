@@ -50,7 +50,10 @@ class ChatRepository(
                             filename = att.filename ?: "attachment",
                             mimeType = att.mime_type,
                             previewBase64 = null,
-                            path = path
+                            path = path,
+                            description = att.description,
+                            ocrText = att.ocr_text,
+                            labels = att.labels
                         )
                     },
                     language = m.language,
@@ -123,13 +126,24 @@ class ChatRepository(
                 val attachments = buildList {
                     for (j in 0 until attsArray.length()) {
                         val objAtt = attsArray.optJSONObject(j) ?: continue
+                        val labelsArray = objAtt.optJSONArray("labels")
+                        val labels = if (labelsArray != null && labelsArray.length() > 0) {
+                            buildList {
+                                for (k in 0 until labelsArray.length()) {
+                                    labelsArray.optString(k)?.takeIf { it.isNotBlank() }?.let { add(it) }
+                                }
+                            }.takeIf { it.isNotEmpty() }
+                        } else null
                         add(
                             ChatMessageAttachmentDto(
                                 id = objAtt.optString("id").takeIf { it.isNotBlank() },
                                 filename = objAtt.optString("filename").takeIf { it.isNotBlank() },
                                 mime_type = objAtt.optString("mime_type").takeIf { it.isNotBlank() },
                                 path = objAtt.optString("path").takeIf { it.isNotBlank() },
-                                size = objAtt.optLong("size", 0L).takeIf { it > 0L }
+                                size = objAtt.optLong("size", 0L).takeIf { it > 0L },
+                                description = objAtt.optString("description").takeIf { it.isNotBlank() },
+                                ocr_text = objAtt.optString("ocr_text").takeIf { it.isNotBlank() },
+                                labels = labels
                             )
                         )
                     }
