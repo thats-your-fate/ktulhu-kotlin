@@ -85,12 +85,18 @@ class ChatSummariesViewModel : ViewModel() {
         viewModelScope.launch {
             val trimmed = newTitle.trim()
             if (trimmed.isBlank()) return@launch
+            val previous = _summaries.value
             _summaries.update { list ->
                 list.map { chat ->
                     if (chat.chatId == chatId) chat.copy(summary = trimmed, text = trimmed) else chat
                 }
             }
-            // No backend endpoint available; local update only
+            runCatching {
+                repo.updateChatSummary(chatId, trimmed)
+            }.onFailure { e ->
+                e.printStackTrace()
+                _summaries.value = previous
+            }
         }
     }
 }

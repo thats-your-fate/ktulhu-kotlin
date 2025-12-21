@@ -2,6 +2,8 @@ package com.ktulhu.ai.data.repository
 
 import com.ktulhu.ai.data.model.*
 import com.ktulhu.ai.data.remote.ChatApi
+import com.ktulhu.ai.data.remote.MessageLikedRequest
+import com.ktulhu.ai.data.remote.SummaryUpdateRequest
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -39,8 +41,10 @@ class ChatRepository(
                     ?: m.message
                     ?: m.token
                     ?: ""
+                val resolvedId = m.id ?: "$resolvedChatId-$i"
                 ChatMessage(
-                    id = m.id ?: "$resolvedChatId-$i",
+                    id = resolvedId,
+                    serverId = m.id,
                     role = m.role ?: "assistant",
                     content = cleanContent(content),
                     attachments = m.attachments.orEmpty().mapNotNull { att ->
@@ -49,7 +53,7 @@ class ChatRepository(
                             id = att.id ?: path,
                             filename = att.filename ?: "attachment",
                             mimeType = att.mime_type,
-                            previewBase64 = null,
+                            previewBase64 = att.previewBase64,
                             path = path,
                             description = att.description,
                             ocrText = att.ocr_text,
@@ -108,6 +112,28 @@ class ChatRepository(
         runCatching { api.deleteChatThread(chatId) }.onFailure { it.printStackTrace() }
     }
 
+    suspend fun updateChatSummary(chatId: String, summary: String) {
+        if (useStubData) return
+        runCatching {
+            api.updateChatSummary(chatId, SummaryUpdateRequest(summary = summary))
+        }.onFailure { it.printStackTrace() }
+    }
+
+    suspend fun deleteMessage(chatId: String, messageId: String): Boolean {
+        if (useStubData) return true
+        return runCatching {
+            api.deleteMessage(chatId, messageId)
+            true
+        }.onFailure { it.printStackTrace() }
+            .getOrElse { false }
+    }
+
+    suspend fun setMessageLiked(chatId: String, messageId: String, liked: Boolean) {
+        if (useStubData) return
+        runCatching { api.setMessageLiked(chatId, messageId, MessageLikedRequest(liked = liked)) }
+            .onFailure { it.printStackTrace() }
+    }
+
     private fun parseThreadJson(raw: String, fallbackChatId: String): Pair<String, List<ChatMessageDto>> {
         return runCatching {
             val obj = JSONObject(raw)
@@ -143,7 +169,10 @@ class ChatRepository(
                                 size = objAtt.optLong("size", 0L).takeIf { it > 0L },
                                 description = objAtt.optString("description").takeIf { it.isNotBlank() },
                                 ocr_text = objAtt.optString("ocr_text").takeIf { it.isNotBlank() },
-                                labels = labels
+                                labels = labels,
+                                previewBase64 = objAtt.optString("preview_base64")
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: objAtt.optString("previewBase64").takeIf { it.isNotBlank() }
                             )
                         )
                     }
@@ -216,6 +245,7 @@ class ChatRepository(
         return listOf(
             ChatMessage(
                 id = "$chatId-1",
+                serverId = "$chatId-1",
                 role = "user",
                 content = "Hey Ktulhu, can you summarize Lovecraft's best stories?",
                 language = "en",
@@ -223,6 +253,7 @@ class ChatRepository(
             ),
             ChatMessage(
                 id = "$chatId-2",
+                serverId = "$chatId-2",
                 role = "assistant",
                 content = "Sure! The Call of Cthulhu, At the Mountains of Madness, and The Shadow over Innsmouth are perennial favorites.",
                 language = "en",

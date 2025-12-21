@@ -32,6 +32,7 @@ fun ChatTopBar(
     historyEmpty: Boolean,
     onOpenDrawer: () -> Unit,
     onNewChatShortcut: () -> Unit,
+    onRenameChat: () -> Unit,
     onDeleteChat: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -92,7 +93,7 @@ fun ChatTopBar(
                 RightIsland(
                     isNewChat = historyEmpty,
                     onNewChat = onNewChatShortcut,
-                    onRenameChat = {},
+                    onRenameChat = onRenameChat,
                     onDeleteChat = onDeleteChat,
                     onAccountClick = onOpenSettings,
                     modifier = Modifier

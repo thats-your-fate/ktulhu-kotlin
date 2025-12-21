@@ -39,6 +39,7 @@ data class ChatMessageAttachmentDto(
     val size: Long? = null,
     val description: String? = null,
     @Json(name = "ocr_text") val ocr_text: String? = null,
+    @Json(name = "previewBase64") val previewBase64: String? = null,
     val labels: List<String>? = null
 )
 

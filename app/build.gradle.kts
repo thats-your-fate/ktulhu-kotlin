@@ -38,11 +38,13 @@ android {
         val appleRedirect = readProp("VITE_APPLE_REDIRECT_URI")
         val fbAppId = readProp("VITE_FB_APP_ID")
         val fbSecret = readProp("FB_APP_SECRET")
+        val uploadBase = readProp("UPLOAD_FILE_BASE_URL", "https://uploads.ktulhu.com/files")
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
         buildConfigField("String", "APPLE_CLIENT_ID", "\"$appleClientId\"")
         buildConfigField("String", "APPLE_REDIRECT_URI", "\"$appleRedirect\"")
         buildConfigField("String", "FB_APP_ID", "\"$fbAppId\"")
         buildConfigField("String", "FB_APP_SECRET", "\"$fbSecret\"")
+        buildConfigField("String", "UPLOAD_FILE_BASE_URL", "\"$uploadBase\"")
     }
 
 

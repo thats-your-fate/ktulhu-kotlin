@@ -46,6 +46,7 @@ fun MainChatScreen(
     chatViewModel: ChatViewModel = viewModel(),
     onOpenDrawer: () -> Unit = {},
     onNewChatShortcut: () -> Unit = {},
+    onRenameChat: () -> Unit = {},
     onDeleteChat: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onUploadImage: () -> Unit = {},
@@ -117,6 +118,13 @@ fun MainChatScreen(
         }
     }
 
+    LaunchedEffect(history.lastOrNull()?.id to history.lastOrNull()?.role) {
+        val last = history.lastOrNull() ?: return@LaunchedEffect
+        if (last.role == "assistant") {
+            scrollToBottom()
+        }
+    }
+
     // Keep bottom visible while streaming into the last message (no animation to prevent jitter).
     LaunchedEffect(session.chatId, listState) {
         snapshotFlow { history.lastOrNull()?.content?.length ?: 0 }
@@ -151,7 +159,13 @@ fun MainChatScreen(
                 val lastId = history.lastOrNull()?.id
                 items(history, key = { it.id }) { msg ->
                     val showActions = !(thinking && msg.id == lastId && msg.role == "assistant")
-                    ChatMessageBubble(msg, showActions = showActions)
+                    ChatMessageBubble(
+                        msg = msg,
+                        showActions = showActions,
+                        onRegenerate = { chatViewModel.regenerateAssistantResponse(it, session) },
+                        onLike = { chatViewModel.sendMessageFeedback(it, liked = true, session = session) },
+                        onDislike = { chatViewModel.sendMessageFeedback(it, liked = false, session = session) }
+                    )
                 }
             }
         }
@@ -161,6 +175,7 @@ fun MainChatScreen(
             historyEmpty = history.isEmpty(),
             onOpenDrawer = onOpenDrawer,
             onNewChatShortcut = onNewChatShortcut,
+            onRenameChat = onRenameChat,
             onDeleteChat = onDeleteChat,
             onOpenSettings = onOpenSettings,
             modifier = Modifier

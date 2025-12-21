@@ -38,6 +38,9 @@
     <string name="chat_copied">Copied</string>
     <string name="chat_share">Share</string>
     <string name="chat_share_title">Share message</string>
+    <string name="chat_regenerate">Regenerate answer</string>
+    <string name="chat_like">Like answer</string>
+    <string name="chat_dislike">Dislike answer</string>
     <string name="chat_add_attachment">Add attachment</string>
     <string name="upload_image">Upload image</string>
     <string name="upload_file">Upload file</string>

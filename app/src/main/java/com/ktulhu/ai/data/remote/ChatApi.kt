@@ -3,8 +3,10 @@ package com.ktulhu.ai.data.remote
 import com.ktulhu.ai.data.model.ChatSummaryListResponse
 import com.ktulhu.ai.data.model.ChatThreadResponse
 import okhttp3.ResponseBody
+import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PUT
 import retrofit2.http.Path
 
 interface ChatApi {
@@ -20,4 +22,31 @@ interface ChatApi {
 
     @GET("/internal/chats/by-device/{deviceHash}")
     suspend fun getChatsByDevice(@Path("deviceHash") deviceHash: String): ChatSummaryListResponse
+
+    @PUT("/internal/chat-thread/{chatId}/summary")
+    suspend fun updateChatSummary(
+        @Path("chatId") chatId: String,
+        @Body body: SummaryUpdateRequest
+    )
+
+    @DELETE("/internal/chat-thread/{chatId}/message/{messageId}")
+    suspend fun deleteMessage(
+        @Path("chatId") chatId: String,
+        @Path("messageId") messageId: String
+    )
+
+    @PUT("/internal/chat-thread/{chatId}/message/{messageId}/liked")
+    suspend fun setMessageLiked(
+        @Path("chatId") chatId: String,
+        @Path("messageId") messageId: String,
+        @Body body: MessageLikedRequest
+    )
 }
+
+data class SummaryUpdateRequest(
+    val summary: String
+)
+
+data class MessageLikedRequest(
+    val liked: Boolean
+)

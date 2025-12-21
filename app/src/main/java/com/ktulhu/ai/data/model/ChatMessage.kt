@@ -13,6 +13,7 @@ data class ChatAttachment(
 
 data class ChatMessage(
     val id: String,
+    val serverId: String? = null,
     val role: String,     // "user" | "assistant" | "system" | "summary"
     val content: String,
     val attachments: List<ChatAttachment> = emptyList(),

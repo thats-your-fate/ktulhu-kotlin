@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -38,20 +37,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -62,6 +67,9 @@ import androidx.annotation.StringRes
 import com.ktulhu.ai.ui.theme.KColors
 import com.ktulhu.ai.R
 import com.ktulhu.ai.data.remote.SocketManager
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 enum class InputStatus { Idle, Thinking }
 
@@ -87,6 +95,9 @@ fun ChatInputArea(
     val containerBorder = if (isDark) c.textareaBorderDark else c.cardBorder
     val textColor = if (isDark) c.textareaTextDark else c.textareaText
     val placeholderColor = if (isDark) c.textareaPlaceholderDark else c.textareaPlaceholder
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val canSend = enabled && status == InputStatus.Idle
 
@@ -94,14 +105,11 @@ fun ChatInputArea(
     val configuration = LocalConfiguration.current
     val maxHeight = configuration.screenHeightDp.dp * 0.40f // 40vh
 
-    var textHeightPx by remember { mutableStateOf(0) }
-
     val attachmentsHeight = if (attachments.isNotEmpty()) 96.dp else 0.dp
-    val dynamicHeight = remember(value, textHeightPx, attachments) {
-        val base = 52.dp + attachmentsHeight
-        val measured = (textHeightPx / 1.6f).dp + 32.dp + attachmentsHeight // convert px → dp, adjust padding
-        minOf(maxHeight, maxOf(base, measured))
-    }
+    val minHeight = 52.dp + attachmentsHeight
+
+    var hasRequestedInitialFocus by remember { mutableStateOf(false) }
+    var showAttachMenu by remember { mutableStateOf(false) }
 
     fun handleSend() {
         val trimmed = value.trim()
@@ -110,26 +118,50 @@ fun ChatInputArea(
         onValueChange("")
     }
 
+    LaunchedEffect(enabled, status) {
+        if (enabled && status == InputStatus.Idle) {
+            if (!hasRequestedInitialFocus) {
+                withFrameNanos { }
+                withFrameNanos { }
+                focusRequester.requestFocus()
+                keyboardController?.show()
+                hasRequestedInitialFocus = true
+            }
+        } else {
+            hasRequestedInitialFocus = false
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, enabled, status) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && enabled && status == InputStatus.Idle) {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .imePadding(),
-                contentAlignment = Alignment.BottomEnd
+        contentAlignment = Alignment.BottomEnd
     ) {
-        // ------------------------------
-        // 🌟 Expanding TextField Container
-        // ------------------------------
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(dynamicHeight)
+                .heightIn(min = minHeight, max = maxHeight)
                 .border(1.dp, containerBorder, shape)
                 .background(containerBg, shape)
-                .padding(start = 60.dp, end = 60.dp, top = 12.dp, bottom = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (attachments.isNotEmpty()) {
                     Row(
@@ -148,114 +180,100 @@ fun ChatInputArea(
                     }
                 }
 
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    enabled = enabled && status != InputStatus.Thinking,
-                    cursorBrush = SolidColor(textColor),
-                    textStyle = TextStyle(
-                        fontSize = 16.sp,
-                        color = textColor,
-                        lineHeight = 22.sp
-                    ),
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Send
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSend = { handleSend() }
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .onPreviewKeyEvent { event ->
-                            if (
-                                event.type == KeyEventType.KeyDown &&
-                                event.key == Key.Enter &&
-                                !event.isShiftPressed
-                            ) {
-                                handleSend()
-                                true
-                            } else false
-                        },
-                    onTextLayout = { layout ->
-                        textHeightPx = layout.size.height
-                    },
-                    decorationBox = { innerTextField ->
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.CenterStart
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(containerBg)
+                            .border(1.dp, containerBorder, CircleShape)
+                            .clickable { showAttachMenu = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = stringResource(R.string.chat_add_attachment),
+                            tint = textColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        DropdownMenu(
+                            expanded = showAttachMenu,
+                            onDismissRequest = { showAttachMenu = false }
                         ) {
-                            if (value.isEmpty()) {
-                                Text(
-                                    text = placeholder,
-                                    color = placeholderColor,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontSize = 18.sp,
-                                        lineHeight = 22.sp
-                                    )
-
-                                )
-                            }
-                            innerTextField()
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.upload_image)) },
+                                onClick = {
+                                    showAttachMenu = false
+                                    onUploadImage()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.upload_file)) },
+                                onClick = {
+                                    showAttachMenu = false
+                                    onUploadFile()
+                                }
+                            )
                         }
                     }
-                )
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        BasicTextField(
+                            value = value,
+                            onValueChange = onValueChange,
+                            enabled = enabled && status != InputStatus.Thinking,
+                            cursorBrush = SolidColor(textColor),
+                            textStyle = TextStyle(
+                                fontSize = 16.sp,
+                                color = textColor,
+                                lineHeight = 22.sp
+                            ),
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Sentences,
+                                imeAction = ImeAction.Default
+                            ),
+                            keyboardActions = KeyboardActions.Default,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
+                            decorationBox = { innerTextField ->
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (value.isEmpty()) {
+                                        Text(
+                                            text = placeholder,
+                                            color = placeholderColor,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontSize = 18.sp,
+                                                lineHeight = 22.sp
+                                            )
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                    }
+
+                    StatusButton(
+                        status = status,
+                        enabled = canSend && value.isNotBlank(),
+                        onClick = { handleSend() },
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
             }
         }
-
-        // ------------------------------
-        // 📎 Attach + 🚀 Send Buttons
-        // ------------------------------
-        var showAttachMenu by remember { mutableStateOf(false) }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 10.dp, bottom = 10.dp)
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(containerBg)
-                .border(1.dp, containerBorder, CircleShape)
-                .clickable { showAttachMenu = true },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Add,
-                contentDescription = stringResource(R.string.chat_add_attachment),
-                tint = textColor,
-                modifier = Modifier.size(24.dp)
-            )
-            DropdownMenu(
-                expanded = showAttachMenu,
-                onDismissRequest = { showAttachMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.upload_image)) },
-                    onClick = {
-                        showAttachMenu = false
-                        onUploadImage()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.upload_file)) },
-                    onClick = {
-                        showAttachMenu = false
-                        onUploadFile()
-                    }
-                )
-            }
-        }
-
-        StatusButton(
-            status = status,
-            enabled = canSend && value.isNotBlank(),
-            onClick = { handleSend() },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 10.dp, bottom = 10.dp)
-                .size(44.dp)
-        )
     }
 }
 
